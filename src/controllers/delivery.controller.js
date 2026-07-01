@@ -1,11 +1,14 @@
 import { checkDeliveryService } from "../services/delivery.service.js";
 
-export const checkDelivery = (req, res) => {
-    console.log(req.body);
-    const { pincode } = req.body;
+export const checkDelivery = async (req, res, next) => {
+    try {
+        const { pincode } = req.body;
 
-    const result = checkDeliveryService(pincode);
+        const result = await checkDeliveryService(pincode);
 
-    res.status(200).json(result);
+        res.status(200).json(result);
 
+    } catch (error) {
+        next(error);
+    }
 };

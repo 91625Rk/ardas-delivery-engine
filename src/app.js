@@ -3,6 +3,10 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import deliveryRoutes from "./routes/delivery.routes.js";
+import errorMiddleware from "./middleware/error.middleware.js";
+import notFound from "./middleware/notFound.middleware.js";
+import adminRoutes from "./routes/admin.routes.js";
+
 
 const app = express();
 
@@ -12,8 +16,10 @@ app.use(helmet());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan("dev"));
-app.use("/api", deliveryRoutes);
+//routes
 
+app.use("/api", deliveryRoutes);
+app.use("/api/admin", adminRoutes);
 // Health Route
 app.get("/api/health", (req, res) => {
   res.status(200).json({
@@ -23,5 +29,10 @@ app.get("/api/health", (req, res) => {
     timestamp: new Date()
   });
 });
+// 404 Middleware
+app.use(notFound);
+
+// Error Middleware
+app.use(errorMiddleware);
 
 export default app;
