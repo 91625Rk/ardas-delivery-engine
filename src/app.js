@@ -6,6 +6,7 @@ import deliveryRoutes from "./routes/delivery.routes.js";
 import errorMiddleware from "./middleware/error.middleware.js";
 import notFound from "./middleware/notFound.middleware.js";
 import adminRoutes from "./routes/admin.routes.js";
+import shopifyRoutes from "./routes/shopify.routes.js";
 
 
 const app = express();
@@ -20,6 +21,7 @@ app.use(morgan("dev"));
 
 app.use("/api", deliveryRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/shopify", shopifyRoutes);
 // Health Route
 app.get("/api/health", (req, res) => {
   res.status(200).json({
