@@ -7,5 +7,11 @@ router.post(
     "/shipping/rates",
     getShippingRates
 );
+router.get("/test", (req, res) => {
+  res.json({
+    success: true,
+    message: "Shopify Route Working"
+  });
+});
 
 export default router;
