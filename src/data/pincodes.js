@@ -1,18 +1,18 @@
 const pincodes = {
-  "110001": "Delhi",
-  "110002": "Delhi",
+  "122001": {
+    city: "Gurugram",
+    state: "Haryana"
+  },
 
-  "122001": "Gurugram",
-  "122002": "Gurugram",
+  "110001": {
+    city: "Delhi",
+    state: "Delhi"
+  },
 
-  "201301": "Noida",
-  "201001": "Ghaziabad",
-
-  "121001": "Faridabad",
-
-  "302001": "Jaipur",
-
-  "160017": "Chandigarh"
+  "302001": {
+    city: "Jaipur",
+    state: "Rajasthan"
+  }
 };
 
 export default pincodes;
