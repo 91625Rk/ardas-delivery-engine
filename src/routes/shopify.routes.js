@@ -1,11 +1,11 @@
 import express from "express";
-import { getShippingRates } from "../controllers/shopify.controller.js";
+import { getShippingRatesService} from "../controllers/shopify.controller.js";
 
 const router = express.Router();
 
 router.post(
     "/shipping/rates",
-    getShippingRates
+    getShippingRatesService
 );
 router.get("/test", (req, res) => {
   res.json({
