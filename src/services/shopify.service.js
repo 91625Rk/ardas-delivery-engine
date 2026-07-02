@@ -1,135 +1,77 @@
-import { findRule } from "../repositories/deliveryRule.repository.js";
-
-const rupeesToShopifyAmount = (rupees) => {
-  return String(Math.round(Number(rupees || 0) * 100));
+const zones = {
+  "North Delhi": ["model town", "gtb nagar", "azadpur", "alipur"],
+  "West Delhi": ["janakpuri", "punjabi bagh", "rajouri garden", "paschim vihar"],
+  "South Delhi": ["saket", "hauz khas", "lajpat nagar", "mehrauli", "greater kailash"],
+  "East Delhi": ["laxmi nagar", "preet vihar", "mayur vihar", "anand vihar"]
 };
 
-const getLivePincodeLocation = async (pincode) => {
-  const response = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
+// 1. GET PINCODE DATA
+const getPincodeData = async (pincode) => {
+  const res = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
+  const data = await res.json();
+  return data?.[0]?.PostOffice?.[0];
+};
 
-  if (!response.ok) {
-    throw new Error(`Pincode API failed with status ${response.status}`);
+// 2. DETECT ZONE
+const detectZone = (postOffice) => {
+  const name = (postOffice?.Name || "").toLowerCase();
+
+  for (const zone in zones) {
+    if (zones[zone].some(area => name.includes(area))) {
+      return zone;
+    }
   }
 
-  const data = await response.json();
+  return "Delhi NCR";
+};
 
-  if (
-    !Array.isArray(data) ||
-    !data[0] ||
-    data[0].Status !== "Success" ||
-    !Array.isArray(data[0].PostOffice) ||
-    data[0].PostOffice.length === 0
-  ) {
-    return null;
-  }
-
-  const postOffice = data[0].PostOffice[0];
-
-  return {
-    pincode,
-    postOfficeName: postOffice.Name,
-    district: postOffice.District,
-    state: postOffice.State,
-    deliveryStatus: postOffice.DeliveryStatus
+// 3. GET PRICE FROM ZONE
+const getPrice = (zone) => {
+  const priceMap = {
+    "North Delhi": 1500,
+    "West Delhi": 1800,
+    "South Delhi": 2000,
+    "East Delhi": 1700,
+    "Delhi NCR": 2500
   };
+
+  return priceMap[zone] || 2500;
 };
 
-const normalizeDeliveryCity = (location) => {
-  const district = String(location?.district || "").toLowerCase();
-  const state = String(location?.state || "").toLowerCase();
+// 4. MAIN FUNCTION
+export const getShippingRatesService = async (pincode) => {
+  console.log("Checking pincode:", pincode);
 
-  if (state.includes("delhi") || district.includes("delhi")) {
-    return "Delhi";
+  const postOffice = await getPincodeData(pincode);
+
+  if (!postOffice) {
+    return {
+      rates: [
+        {
+          service_name: "Ardas Delivery",
+          service_code: "ARDAS_MANUAL",
+          total_price: "300000",
+          currency: "INR",
+          description: "Manual delivery required"
+        }
+      ]
+    };
   }
 
-  if (district.includes("gurugram") || district.includes("gurgaon")) {
-    return "Gurugram";
-  }
+  const zone = detectZone(postOffice);
+  const price = getPrice(zone);
 
-  if (
-    district.includes("gautam buddha nagar") ||
-    district.includes("noida")
-  ) {
-    return "Noida";
-  }
-
-  if (district.includes("ghaziabad")) {
-    return "Ghaziabad";
-  }
-
-  if (district.includes("faridabad")) {
-    return "Faridabad";
-  }
-
-  if (district.includes("jaipur")) {
-    return "Jaipur";
-  }
-
-  if (district.includes("chandigarh")) {
-    return "Chandigarh";
-  }
-
-  return location?.district;
-};
-
-const manualDeliveryRate = (description = "Delivery charge will be confirmed by our team.") => {
-  return {
-    rates: [
-      {
-        service_name: "Manual Furniture Delivery",
-        service_code: "ARDAS_MANUAL_DELIVERY",
-        total_price: "1000000",
-        currency: "INR",
-        description
-      }
-    ]
-  };
-};
-
-export const getShippingRatesService = async (postalCode) => {
-  const pincode = String(postalCode || "").trim();
-
-  console.log("Checking live pincode:", pincode);
-
-  if (!/^[1-9][0-9]{5}$/.test(pincode)) {
-    return manualDeliveryRate("Please enter a valid 6 digit Indian pincode.");
-  }
-
-  let location;
-
-  try {
-    location = await getLivePincodeLocation(pincode);
-  } catch (error) {
-    console.error("Live pincode API error:", error.message);
-    return manualDeliveryRate("Delivery charge will be confirmed by our team.");
-  }
-
-  if (!location) {
-    return manualDeliveryRate("Delivery is not available for this pincode.");
-  }
-
-  console.log("Live pincode location:", location);
-
-  const city = normalizeDeliveryCity(location);
-
-  console.log("Normalized delivery city:", city);
-
-  const rule = await findRule(city);
-
-  if (!rule) {
-    return manualDeliveryRate(`Delivery charge for ${city || location.state} will be confirmed by our team.`);
-  }
-
-  const charge = Number(rule.charge || 0);
+  console.log("Detected Zone:", zone);
+  console.log("Price:", price);
 
   return {
     rates: [
       {
-        service_name: "Ardas Standard Delivery",
-        service_code: "ARDAS_STANDARD",
-        total_price: rupeesToShopifyAmount(charge),
+        service_name: `Ardas ${zone} Delivery`,
+        service_code: "ARDAS_ZONE",
+        total_price: String(price * 100),
         currency: "INR",
-        description: `${rule.days} Day Delivery`
+        description: `${zone} delivery`
       }
     ]
   };

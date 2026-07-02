@@ -1,45 +1,78 @@
-import { getShippingRatesService } from "../services/shopify.service.js";
+const zones = {
+  "North Delhi": ["model town", "gtb nagar", "azadpur", "alipur"],
+  "West Delhi": ["janakpuri", "punjabi bagh", "rajouri garden", "paschim vihar"],
+  "South Delhi": ["saket", "hauz khas", "lajpat nagar", "mehrauli", "greater kailash"],
+  "East Delhi": ["laxmi nagar", "preet vihar", "mayur vihar", "anand vihar"]
+};
 
-export const getShippingRates = async (req, res) => {
-  try {
-    console.log("SHOPIFY RATE REQUEST:");
-    console.log(JSON.stringify(req.body, null, 2));
+// 1. GET PINCODE DATA
+const getPincodeData = async (pincode) => {
+  const res = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
+  const data = await res.json();
+  return data?.[0]?.PostOffice?.[0];
+};
 
-    const postalCode = req.body?.rate?.destination?.postal_code;
+// 2. DETECT ZONE
+const detectZone = (postOffice) => {
+  const name = (postOffice?.Name || "").toLowerCase();
 
-    if (!postalCode) {
-      return res.status(200).json({
-        rates: [
-          {
-            service_name: "Fallback Furniture Delivery",
-            service_code: "ARDAS_FALLBACK",
-            total_price: "1000000",
-            currency: "INR",
-            description: "Pincode missing. Delivery charge will be confirmed by our team."
-          }
-        ]
-      });
+  for (const zone in zones) {
+    if (zones[zone].some(area => name.includes(area))) {
+      return zone;
     }
+  }
 
-    const response = await getShippingRatesService(postalCode);
+  return "Delhi NCR";
+};
 
-    console.log("SHOPIFY RATE RESPONSE:");
-    console.log(JSON.stringify(response, null, 2));
+// 3. GET PRICE FROM ZONE
+const getPrice = (zone) => {
+  const priceMap = {
+    "North Delhi": 1500,
+    "West Delhi": 1800,
+    "South Delhi": 2000,
+    "East Delhi": 1700,
+    "Delhi NCR": 2500
+  };
 
-    return res.status(200).json(response);
-  } catch (err) {
-    console.error("SHOPIFY SHIPPING ERROR:", err);
+  return priceMap[zone] || 2500;
+};
 
-    return res.status(200).json({
+// 4. MAIN FUNCTION
+export const getShippingRatesService = async (pincode) => {
+  console.log("Checking pincode:", pincode);
+
+  const postOffice = await getPincodeData(pincode);
+
+  if (!postOffice) {
+    return {
       rates: [
         {
-          service_name: "Fallback Furniture Delivery",
-          service_code: "ARDAS_ERROR_FALLBACK",
-          total_price: "1000000",
+          service_name: "Ardas Delivery",
+          service_code: "ARDAS_MANUAL",
+          total_price: "300000",
           currency: "INR",
-          description: "Delivery charge will be confirmed by our team."
+          description: "Manual delivery required"
         }
       ]
-    });
+    };
   }
+
+  const zone = detectZone(postOffice);
+  const price = getPrice(zone);
+
+  console.log("Detected Zone:", zone);
+  console.log("Price:", price);
+
+  return {
+    rates: [
+      {
+        service_name: `Ardas ${zone} Delivery`,
+        service_code: "ARDAS_ZONE",
+        total_price: String(price * 100),
+        currency: "INR",
+        description: `${zone} delivery`
+      }
+    ]
+  };
 };
