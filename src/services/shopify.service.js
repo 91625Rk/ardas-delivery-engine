@@ -9,13 +9,22 @@ const zones = {
 const getPincodeData = async (pincode) => {
   const res = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
   const data = await res.json();
+
   return data?.[0]?.PostOffice?.[0];
 };
 
-// 2. DETECT ZONE
+// 2. DETECT ZONE (FIXED LOGIC)
 const detectZone = (postOffice) => {
   const name = (postOffice?.Name || "").toLowerCase();
+  const district = (postOffice?.District || "").toLowerCase();
 
+  // 🔥 FIRST PRIORITY: DISTRICT MATCH (BEST & CLEAN)
+  if (district.includes("north delhi")) return "North Delhi";
+  if (district.includes("west delhi")) return "West Delhi";
+  if (district.includes("south delhi")) return "South Delhi";
+  if (district.includes("east delhi")) return "East Delhi";
+
+  // 🔥 SECOND PRIORITY: NAME MATCH (FALLBACK ONLY)
   for (const zone in zones) {
     if (zones[zone].some(area => name.includes(area))) {
       return zone;
@@ -25,7 +34,7 @@ const detectZone = (postOffice) => {
   return "Delhi NCR";
 };
 
-// 3. GET PRICE FROM ZONE
+// 3. PRICE MAP
 const getPrice = (zone) => {
   const priceMap = {
     "North Delhi": 1500,
@@ -61,6 +70,8 @@ export const getShippingRatesService = async (pincode) => {
   const zone = detectZone(postOffice);
   const price = getPrice(zone);
 
+  console.log("PostOffice:", postOffice?.Name);
+  console.log("District:", postOffice?.District);
   console.log("Detected Zone:", zone);
   console.log("Price:", price);
 
