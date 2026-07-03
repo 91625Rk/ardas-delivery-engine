@@ -1,78 +1,45 @@
-const zones = {
-  "North Delhi": ["model town", "gtb nagar", "azadpur", "alipur"],
-  "West Delhi": ["janakpuri", "punjabi bagh", "rajouri garden", "paschim vihar"],
-  "South Delhi": ["saket", "hauz khas", "lajpat nagar", "mehrauli", "greater kailash"],
-  "East Delhi": ["laxmi nagar", "preet vihar", "mayur vihar", "anand vihar"]
-};
+import { getShippingRatesService } from "../services/shopify.service.js";
 
-// 1. GET PINCODE DATA
-const getPincodeData = async (pincode) => {
-  const res = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
-  const data = await res.json();
-  return data?.[0]?.PostOffice?.[0];
-};
+export const getShippingRates = async (req, res) => {
+  try {
+    console.log("SHOPIFY BODY:", JSON.stringify(req.body, null, 2));
 
-// 2. DETECT ZONE
-const detectZone = (postOffice) => {
-  const name = (postOffice?.Name || "").toLowerCase();
+    const postalCode = req.body?.rate?.destination?.postal_code;
 
-  for (const zone in zones) {
-    if (zones[zone].some(area => name.includes(area))) {
-      return zone;
+    console.log("POSTAL CODE:", postalCode);
+
+    if (!postalCode) {
+      return res.status(200).json({
+        rates: [
+          {
+            service_name: "Ardas Fallback Delivery",
+            service_code: "ARDAS_NO_PINCODE",
+            total_price: "500000",
+            currency: "INR",
+            description: "Pincode missing fallback"
+          }
+        ]
+      });
     }
-  }
 
-  return "Delhi NCR";
-};
+    const response = await getShippingRatesService(postalCode);
 
-// 3. GET PRICE FROM ZONE
-const getPrice = (zone) => {
-  const priceMap = {
-    "North Delhi": 1500,
-    "West Delhi": 1800,
-    "South Delhi": 2000,
-    "East Delhi": 1700,
-    "Delhi NCR": 2500
-  };
+    console.log("FINAL SHOPIFY RESPONSE:", JSON.stringify(response, null, 2));
 
-  return priceMap[zone] || 2500;
-};
+    return res.status(200).json(response);
+  } catch (error) {
+    console.error("SHOPIFY SHIPPING ERROR:", error);
 
-// 4. MAIN FUNCTION
-export const getShippingRatesService = async (pincode) => {
-  console.log("Checking pincode:", pincode);
-
-  const postOffice = await getPincodeData(pincode);
-
-  if (!postOffice) {
-    return {
+    return res.status(200).json({
       rates: [
         {
-          service_name: "Ardas Delivery",
-          service_code: "ARDAS_MANUAL",
-          total_price: "300000",
+          service_name: "Ardas Fallback Delivery",
+          service_code: "ARDAS_ERROR",
+          total_price: "500000",
           currency: "INR",
-          description: "Manual delivery required"
+          description: "Delivery fallback due to server error"
         }
       ]
-    };
+    });
   }
-
-  const zone = detectZone(postOffice);
-  const price = getPrice(zone);
-
-  console.log("Detected Zone:", zone);
-  console.log("Price:", price);
-
-  return {
-    rates: [
-      {
-        service_name: `Ardas ${zone} Delivery`,
-        service_code: "ARDAS_ZONE",
-        total_price: String(price * 100),
-        currency: "INR",
-        description: `${zone} delivery`
-      }
-    ]
-  };
 };
